@@ -35,8 +35,6 @@ spring:
 # Server Configuration
 server:
   port: 8080
-  servlet:
-    context-path: /api/v1
 
 # Logging
 logging:
@@ -59,4 +57,4 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: never

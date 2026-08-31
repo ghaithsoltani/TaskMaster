@@ -12,6 +12,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +29,6 @@ public class UserService {
 
     @Transactional
     public AuthResponse register(UserRequest request) {
-        // Validate uniqueness
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username already exists: " + request.getUsername());
         }
@@ -36,7 +36,6 @@ public class UserService {
             throw new IllegalArgumentException("Email already exists: " + request.getEmail());
         }
 
-        // Create user
         User user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
@@ -44,26 +43,24 @@ public class UserService {
                 .role(User.Role.USER)
                 .build();
 
-        userRepository.save(user);
-        log.info("User registered: {}", user.getUsername());
+        User savedUser = userRepository.save(user);
+        log.info("User registered: {}", savedUser.getUsername());
 
-        // Generate token
-        String token = jwtUtil.generateToken(
-                new org.springframework.security.core.userdetails.User(
-                        user.getUsername(),
-                        user.getPasswordHash(),
-                        java.util.Collections.singletonList(
-                                new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")
-                        )
-                )
-        );
+        // Create UserDetails for token generation
+        UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                .username(savedUser.getUsername())
+                .password(savedUser.getPasswordHash())
+                .roles(savedUser.getRole().name())
+                .build();
+
+        String token = jwtUtil.generateToken(userDetails);
 
         return AuthResponse.builder()
                 .token(token)
                 .type("Bearer")
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .role(user.getRole().name())
+                .username(savedUser.getUsername())
+                .email(savedUser.getEmail())
+                .role(savedUser.getRole().name())
                 .build();
     }
 
