@@ -1,42 +1,32 @@
-# ============================================
-# SPRING BOOT APPLICATION CONFIGURATION
-# ============================================
-# NEVER hardcode secrets here in production.
-# Use environment variables or external config.
-# ============================================
-
 spring:
   application:
     name: taskmaster-backend
-
-  # Database Configuration
+  
   datasource:
-    url: jdbc:postgresql://localhost:5432/taskmaster
-    username: ${DB_USERNAME:taskmaster_user}
-    password: ${DB_PASSWORD:taskmaster_pass}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/taskmaster}
+    username: ${SPRING_DATASOURCE_USERNAME:taskmaster_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:taskmaster_pass}
     driver-class-name: org.postgresql.Driver
-
-  # JPA / Hibernate Configuration
+  
   jpa:
     hibernate:
-      ddl-auto: validate  # validate schema, don't auto-create
-    show-sql: true        # log SQL queries (disable in prod)
+      ddl-auto: validate
+    show-sql: ${SHOW_SQL:true}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-
-  # SQL Initialization (run schema/data scripts)
+  
   sql:
     init:
-      mode: always
+      mode: ${SQL_INIT_MODE:always}
       schema-locations: classpath:db/migration/V1__init.sql
 
-# Server Configuration
 server:
   port: 8080
+  servlet:
+    context-path: /api/v1
 
-# Logging
 logging:
   level:
     com.taskmaster: DEBUG
@@ -44,12 +34,10 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
-# JWT Configuration
 jwt:
   secret: ${JWT_SECRET:my-256-bit-secret-key-for-jwt-signing-must-be-at-least-32-characters-long}
-  expiration: 86400000  # 24 hours in milliseconds
+  expiration: 86400000
 
-# Actuator (Health Checks)
 management:
   endpoints:
     web:
@@ -57,4 +45,4 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: never
+      show-details: always
