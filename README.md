@@ -473,3 +473,63 @@ Goals:
 **Version:** 1.0.0  
 **Phase:** Requirements Definition  
 **Status:** Approved for Development
+
+# TaskMaster — Project 1: Beginner DevOps
+
+A simple task management system built to learn core DevOps practices.
+
+## Business Problem
+
+Small teams need a lightweight tool to track tasks across projects.
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Angular 16+, TypeScript, Angular Material |
+| Backend | Spring Boot 3.2, Java 17 |
+| Database | PostgreSQL 15 |
+| Build | Maven, npm |
+| Testing | JUnit 5, Jasmine, Karma |
+
+## Architecture
+
+
+## Quick Start
+
+### Prerequisites
+- Java 17+
+- Node.js 18+
+- PostgreSQL 15+
+- Maven 3.8+
+
+### Backend
+```bash
+cd backend
+mvn spring-boot:run
+# API at http://localhost:8080/api/v1
+
+cd frontend
+npm install
+ng serve --proxy-config src/proxy.conf.json
+# App at http://localhost:4200
+
+docker run -d \
+  --name taskmaster-postgres \
+  -e POSTGRES_DB=taskmaster \
+  -e POSTGRES_USER=taskmaster_user \
+  -e POSTGRES_PASSWORD=taskmaster_pass \
+  -p 5432:5432 \
+  postgres:15
+
+taskmaster/
+├── backend/          # Spring Boot application
+├── frontend/         # Angular application
+├── database/         # SQL migrations
+├── docker/           # Docker configurations
+├── jenkins/          # CI/CD pipelines
+├── terraform/        # Infrastructure as Code
+├── ansible/          # Configuration management
+├── kubernetes/       # K8s manifests
+├── monitoring/       # Prometheus & Grafana
+└── docs/             # Documentation
