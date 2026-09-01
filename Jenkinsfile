@@ -15,10 +15,6 @@
 pipeline {
     agent any
 
-    tools {
-
-            nodejs 'NodeJS-22'
-        }
 
     environment {
         // Application metadata
@@ -133,12 +129,10 @@ pipeline {
 
                 dir('frontend') {
                     // Install dependencies
-                    sh '''
-                        node --version
-                        npm --version
-                        npm ci
-                        npm run build
-                    '''
+                    sh 'npm ci'
+
+                    // Build for production
+                    sh 'npm run build -- --configuration production'
                 }
             }
             post {
