@@ -2,62 +2,33 @@
 // TASKMASTER - JENKINS PIPELINE
 // ============================================
 // Pipeline stages:
-//   1. Checkout      → Pull code from GitHub
-//   2. Build Backend → Maven compile
-//   3. Test Backend  → Unit + Integration tests
-//   4. Build Frontend → npm install + build
-//   5. Test Frontend → Karma tests
-//   6. Docker Build  → Build images
-//   7. Push Images   → Push to registry (simulated)
-//   8. Deploy        → Deploy to environment
+//   1. Checkout         → Pull code from GitHub
+//   2. Build Backend    → Maven compile
+//   3. Test Backend     → Unit + Integration tests
+//   4. Build Frontend   → npm install + build
+//   5. Test Frontend    → Karma tests
+//   6. Docker Build     → Build images
+//   7. Image Validation → Validate containers
+//   8. Push Images      → Push to registry (simulated)
+//   9. Deploy           → Deploy to environment
 // ============================================
 
 pipeline {
     agent any
 
-    environment {
-        // Application metadata
-        APP_NAME = 'taskmaster'
-        VERSION = "${env.BUILD_NUMBER}"
-
-        // Docker image tags
-        BACKEND_IMAGE = "${APP_NAME}-backend:${VERSION}"
-        FRONTEND_IMAGE = "${APP_NAME}-frontend:${VERSION}"
-
-        // Database credentials for tests
-        DB_URL = 'jdbc:postgresql://localhost:5432/taskmaster_test'
-        DB_USERNAME = 'test_user'
-        DB_PASSWORD = 'test_pass'
-    }
-
-    options {
-        // Pipeline options
-        buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 30, unit: 'MINUTES')
-        disableConcurrentBuilds()
-    }
-
-    triggers {
-        // Poll GitHub every 5 minutes (for demo; webhooks preferred)
-        pollSCM('H/5 * * * *')
+    tools {
+        jdk 'JDK-21'
+        nodejs 'NodeJS-20'
     }
 
     stages {
+
         // ==========================================
         // STAGE 1: CHECKOUT
         // ==========================================
         stage('Checkout') {
             steps {
-                script {
-                    echo "Checking out code from GitHub..."
-                    echo "Branch: ${env.BRANCH_NAME}"
-                    echo "Commit: ${env.GIT_COMMIT}"
-                }
-
-                // Clean workspace before build
-                cleanWs()
-
-                // Checkout code
+                echo "Checking out code from GitHub..."
                 checkout scm
             }
         }
@@ -67,14 +38,11 @@ pipeline {
         // ==========================================
         stage('Build Backend') {
             steps {
-                script {
-                    echo "Building Spring Boot backend..."
-                }
-
-
-                // Maven build (compile only, no tests yet)
-                sh 'chmod +x mvnw && ./mvnw clean compile -B'
-
+                echo "Building Spring Boot backend..."
+                sh '''
+                    chmod +x mvnw
+                    ./mvnw clean compile -B
+                '''
             }
             post {
                 success {
@@ -91,22 +59,15 @@ pipeline {
         // ==========================================
         stage('Test Backend') {
             steps {
-                script {
-                    echo "Running backend tests..."
-                }
-
-
-                // Run all tests with coverage
-                sh 'chmod +x mvnw && ./mvnw test -B'
-
+                echo "Running backend tests..."
+                sh '''
+                    chmod +x mvnw
+                    ./mvnw test -B
+                '''
             }
             post {
                 always {
-                    // Publish test results
                     junit 'target/surefire-reports/*.xml'
-
-                    // Publish coverage report
-
                 }
                 success {
                     echo "All backend tests passed"
@@ -122,16 +83,14 @@ pipeline {
         // ==========================================
         stage('Build Frontend') {
             steps {
-                script {
-                    echo "Building Angular frontend..."
-                }
-
+                echo "Building Angular frontend..."
                 dir('frontend') {
-                    // Install dependencies
-                    sh 'npm ci'
-
-                    // Build for production
-                    sh 'npm run build -- --configuration production'
+                    sh '''
+                        node --version
+                        npm --version
+                        npm ci
+                        npm run build
+                    '''
                 }
             }
             post {
@@ -149,32 +108,10 @@ pipeline {
         // ==========================================
         stage('Test Frontend') {
             steps {
-                script {
-                    echo "Running frontend tests..."
-                }
-
                 dir('frontend') {
-                    // Run tests with headless browser
-                    sh 'ng test --watch=false --browsers=FirefoxHeadless --code-coverage'
-                }
-            }
-            post {
-                always {
-                    // Publish coverage report
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'frontend/coverage/frontend',
-                        reportFiles: 'index.html',
-                        reportName: 'Frontend Coverage Report'
-                    ])
-                }
-                success {
-                    echo "All frontend tests passed"
-                }
-                failure {
-                    echo "Frontend tests failed"
+                    sh '''
+                        npm test -- --watch=false
+                    '''
                 }
             }
         }
@@ -189,13 +126,7 @@ pipeline {
                     echo "Backend: ${BACKEND_IMAGE}"
                     echo "Frontend: ${FRONTEND_IMAGE}"
                 }
-
-                // Build backend image
-
                 sh "docker build -t ${BACKEND_IMAGE} ."
-
-
-                // Build frontend image
                 dir('frontend') {
                     sh "docker build -t ${FRONTEND_IMAGE} ."
                 }
@@ -216,10 +147,8 @@ pipeline {
         stage('Image Validation') {
             steps {
                 script {
-                    echo "🔍 Validating Docker images..."
+                    echo "Validating Docker images..."
                 }
-
-                // Run backend container and test health
                 sh """
                     docker run -d --name ${APP_NAME}-backend-test -p 8081:8080 ${BACKEND_IMAGE}
                     sleep 30
@@ -227,8 +156,6 @@ pipeline {
                     docker stop ${APP_NAME}-backend-test
                     docker rm ${APP_NAME}-backend-test
                 """
-
-                // Run frontend container and test health
                 sh """
                     docker run -d --name ${APP_NAME}-frontend-test -p 8082:80 ${FRONTEND_IMAGE}
                     sleep 10
@@ -243,7 +170,6 @@ pipeline {
                 }
                 failure {
                     echo "Image validation failed"
-                    // Cleanup on failure
                     sh """
                         docker stop ${APP_NAME}-backend-test || true
                         docker rm ${APP_NAME}-backend-test || true
@@ -265,12 +191,8 @@ pipeline {
                 script {
                     echo "Pushing images to registry..."
                     echo "In production, this would push to Docker Hub, ECR, or GCR"
-
-                    // Tag for registry
                     sh "docker tag ${BACKEND_IMAGE} ${APP_NAME}-backend:latest"
                     sh "docker tag ${FRONTEND_IMAGE} ${APP_NAME}-frontend:latest"
-
-                    // Simulate push (no actual registry in local setup)
                     echo "Simulated: docker push ${APP_NAME}-backend:latest"
                     echo "Simulated: docker push ${APP_NAME}-frontend:latest"
                 }
@@ -288,13 +210,12 @@ pipeline {
                 script {
                     echo "Deploying to environment..."
                     echo "In production, this would deploy to Kubernetes or Docker Swarm"
-
-                    // Simulate deployment
                     echo "Simulated: kubectl apply -f kubernetes/"
                     echo "Simulated: docker-compose -f docker-compose.prod.yml up -d"
                 }
             }
         }
+
     }
 
     // ============================================
@@ -302,10 +223,7 @@ pipeline {
     // ============================================
     post {
         always {
-            // Cleanup workspace
             cleanWs()
-
-            // Send notification (simplified)
             echo "Pipeline completed: ${currentBuild.result}"
         }
         success {
