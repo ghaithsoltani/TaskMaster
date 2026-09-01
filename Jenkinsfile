@@ -108,18 +108,25 @@ pipeline {
         // STAGE 4: BUILD FRONTEND
         // ==========================================
         stage('Build Frontend') {
-            steps {
-                script {
-                    echo "Building Angular frontend..."
-                }
-                dir('frontend') {
-                    sh 'npm ci'
-                    sh 'NODE_OPTIONS="--max-old-space-size=512" npm run build -- --configuration production'
+            agent {
+                docker {
+                    image 'node:22'
+                    reuseNode true
                 }
             }
+
+            steps {
+                dir('frontend') {
+                    sh 'node --version'
+                    sh 'npm --version'
+                    sh 'npm ci'
+                    sh 'npm run build -- --configuration production'
+                }
+            }
+
             post {
                 success {
-                    echo "Frontend built successfully"
+                    echo "Frontend ready"
                 }
                 failure {
                     echo "Frontend build failed"
