@@ -14,6 +14,10 @@
 
 pipeline {
     agent any
+    tools {
+        jdk 'JDK-21'
+        nodejs 'NodeJS-20'   // ← must match exactly what's in Jenkins Tools config
+    }
 
 
     environment {
@@ -125,6 +129,9 @@ pipeline {
             steps {
                 script {
                     echo "Building Angular frontend..."
+                    def nodeHome = tool name: 'NodeJS-20', type: 'nodejs'
+                    env.PATH = "${nodeHome}/bin:${env.PATH}"
+                    echo "Building Angular frontend..."
                 }
 
                 dir('frontend') {
@@ -155,8 +162,8 @@ pipeline {
                 }
 
                 dir('frontend') {
-                    // Run tests with headless browser
-                    sh 'ng test --watch=false --browsers=FirefoxHeadless --code-coverage'
+                    // Use npx instead of bare 'ng' to avoid PATH issues
+                    sh 'npx ng test --watch=false --browsers=FirefoxHeadless --code-coverage'
                 }
             }
             post {
