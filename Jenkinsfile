@@ -14,11 +14,11 @@
 
 pipeline {
     agent any
+
     tools {
         jdk 'JDK-21'
-        nodejs 'NodeJS-20'   // ← must match exactly what's in Jenkins Tools config
+        nodejs 'NodeJS-20'
     }
-
 
     environment {
         // Application metadata
@@ -36,14 +36,12 @@ pipeline {
     }
 
     options {
-        // Pipeline options
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
 
     triggers {
-        // Poll GitHub every 5 minutes (for demo; webhooks preferred)
         pollSCM('H/5 * * * *')
     }
 
@@ -58,11 +56,7 @@ pipeline {
                     echo "Branch: ${env.BRANCH_NAME}"
                     echo "Commit: ${env.GIT_COMMIT}"
                 }
-
-                // Clean workspace before build
                 cleanWs()
-
-                // Checkout code
                 checkout scm
             }
         }
@@ -75,11 +69,7 @@ pipeline {
                 script {
                     echo "Building Spring Boot backend..."
                 }
-
-
-                // Maven build (compile only, no tests yet)
                 sh 'chmod +x mvnw && ./mvnw clean compile -B'
-
             }
             post {
                 success {
@@ -99,19 +89,11 @@ pipeline {
                 script {
                     echo "Running backend tests..."
                 }
-
-
-                // Run all tests with coverage
                 sh 'chmod +x mvnw && ./mvnw test -B'
-
             }
             post {
                 always {
-                    // Publish test results
                     junit 'target/surefire-reports/*.xml'
-
-                    // Publish coverage report
-
                 }
                 success {
                     echo "All backend tests passed"
@@ -129,17 +111,10 @@ pipeline {
             steps {
                 script {
                     echo "Building Angular frontend..."
-                    def nodeHome = tool name: 'NodeJS-20', type: 'nodejs'
-                    env.PATH = "${nodeHome}/bin:${env.PATH}"
-                    echo "Building Angular frontend..."
                 }
-
                 dir('frontend') {
-                    // Install dependencies
                     sh 'npm ci'
-
-                    // Build for production
-                    sh 'npm run build -- --configuration production'
+                    sh 'NODE_OPTIONS="--max-old-space-size=512" npm run build -- --configuration production'
                 }
             }
             post {
@@ -160,15 +135,12 @@ pipeline {
                 script {
                     echo "Running frontend tests..."
                 }
-
                 dir('frontend') {
-                    // Use npx instead of bare 'ng' to avoid PATH issues
                     sh 'npx ng test --watch=false --browsers=FirefoxHeadless --code-coverage'
                 }
             }
             post {
                 always {
-                    // Publish coverage report
                     publishHTML([
                         allowMissing: false,
                         alwaysLinkToLastBuild: true,
@@ -197,13 +169,7 @@ pipeline {
                     echo "Backend: ${BACKEND_IMAGE}"
                     echo "Frontend: ${FRONTEND_IMAGE}"
                 }
-
-                // Build backend image
-
                 sh "docker build -t ${BACKEND_IMAGE} ."
-
-
-                // Build frontend image
                 dir('frontend') {
                     sh "docker build -t ${FRONTEND_IMAGE} ."
                 }
@@ -224,10 +190,8 @@ pipeline {
         stage('Image Validation') {
             steps {
                 script {
-                    echo "🔍 Validating Docker images..."
+                    echo "Validating Docker images..."
                 }
-
-                // Run backend container and test health
                 sh """
                     docker run -d --name ${APP_NAME}-backend-test -p 8081:8080 ${BACKEND_IMAGE}
                     sleep 30
@@ -235,8 +199,6 @@ pipeline {
                     docker stop ${APP_NAME}-backend-test
                     docker rm ${APP_NAME}-backend-test
                 """
-
-                // Run frontend container and test health
                 sh """
                     docker run -d --name ${APP_NAME}-frontend-test -p 8082:80 ${FRONTEND_IMAGE}
                     sleep 10
@@ -251,7 +213,6 @@ pipeline {
                 }
                 failure {
                     echo "Image validation failed"
-                    // Cleanup on failure
                     sh """
                         docker stop ${APP_NAME}-backend-test || true
                         docker rm ${APP_NAME}-backend-test || true
@@ -273,12 +234,8 @@ pipeline {
                 script {
                     echo "Pushing images to registry..."
                     echo "In production, this would push to Docker Hub, ECR, or GCR"
-
-                    // Tag for registry
                     sh "docker tag ${BACKEND_IMAGE} ${APP_NAME}-backend:latest"
                     sh "docker tag ${FRONTEND_IMAGE} ${APP_NAME}-frontend:latest"
-
-                    // Simulate push (no actual registry in local setup)
                     echo "Simulated: docker push ${APP_NAME}-backend:latest"
                     echo "Simulated: docker push ${APP_NAME}-frontend:latest"
                 }
@@ -296,8 +253,6 @@ pipeline {
                 script {
                     echo "Deploying to environment..."
                     echo "In production, this would deploy to Kubernetes or Docker Swarm"
-
-                    // Simulate deployment
                     echo "Simulated: kubectl apply -f kubernetes/"
                     echo "Simulated: docker-compose -f docker-compose.prod.yml up -d"
                 }
@@ -310,10 +265,7 @@ pipeline {
     // ============================================
     post {
         always {
-            // Cleanup workspace
             cleanWs()
-
-            // Send notification (simplified)
             echo "Pipeline completed: ${currentBuild.result}"
         }
         success {
