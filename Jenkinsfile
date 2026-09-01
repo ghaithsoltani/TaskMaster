@@ -73,7 +73,7 @@ pipeline {
 
 
                 // Maven build (compile only, no tests yet)
-                sh 'chmod +x .mvn && mvn clean compile -B'
+                sh 'chmod +x mvnw && ./mvnw clean compile -B'
 
             }
             post {
@@ -97,7 +97,7 @@ pipeline {
 
 
                 // Run all tests with coverage
-                sh 'chmod +x .mvn && mvn test -B'
+                sh 'chmod +x mvnw && ./mvnw test -B'
 
             }
             post {
