@@ -106,14 +106,7 @@ pipeline {
                     junit 'target/surefire-reports/*.xml'
 
                     // Publish coverage report
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'target/site/jacoco',
-                        reportFiles: 'index.html',
-                        reportName: 'Backend Coverage Report'
-                    ])
+
                 }
                 success {
                     echo "All backend tests passed"
