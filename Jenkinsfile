@@ -62,67 +62,68 @@ pipeline {
             }
         }
 
-        // ==========================================
-        // STAGE 2: BUILD BACKEND
-        // ==========================================
         stage('Build Backend') {
-            steps {
-                script {
-                    echo "Building Spring Boot backend..."
-                }
+    steps {
+        echo '=========================================='
+        echo 'BUILD BACKEND'
+        echo '=========================================='
 
+        sh '''
+            chmod +x mvnw
+            ./mvnw clean compile -B
+        '''
+    }
 
-                // Maven build (compile only, no tests yet)
-                sh 'mvn clean compile -B'
-
-            }
-            post {
-                success {
-                    echo "Backend compiled successfully"
-                }
-                failure {
-                    echo "Backend compilation failed"
-                }
-            }
+    post {
+        success {
+            echo 'Backend compiled successfully.'
         }
 
-        // ==========================================
-        // STAGE 3: TEST BACKEND
-        // ==========================================
-        stage('Test Backend') {
-            steps {
-                script {
-                    echo "Running backend tests..."
-                }
+        failure {
+            echo 'Backend compilation failed.'
+        }
+    }
+}
 
 
-                // Run all tests with coverage
-                sh 'mvn test -B'
-
+    stage('Test Backend') {
+        steps {
+            echo '=========================================='
+            echo 'TEST BACKEND'
+            echo '=========================================='
+    
+            sh '''
+                chmod +x mvnw
+                ./mvnw test -B
+            '''
+        }
+    
+        post {
+            always {
+                junit(
+                    testResults: 'target/surefire-reports/*.xml',
+                    allowEmptyResults: true
+                )
+    
+                publishHTML([
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'target/site/jacoco',
+                    reportFiles: 'index.html',
+                    reportName: 'Backend Coverage Report'
+                ])
             }
-            post {
-                always {
-                    // Publish test results
-                    junit 'target/surefire-reports/*.xml'
-
-                    // Publish coverage report
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'target/site/jacoco',
-                        reportFiles: 'index.html',
-                        reportName: 'Backend Coverage Report'
-                    ])
-                }
-                success {
-                    echo "All backend tests passed"
-                }
-                failure {
-                    echo "Backend tests failed"
-                }
+    
+            success {
+                echo 'Backend tests passed.'
+            }
+    
+            failure {
+                echo 'Backend tests failed.'
             }
         }
+    }
 
         // ==========================================
         // STAGE 4: BUILD FRONTEND
