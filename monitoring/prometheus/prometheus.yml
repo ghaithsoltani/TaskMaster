@@ -1,0 +1,60 @@
+# ============================================
+# PROMETHEUS CONFIGURATION
+# ============================================
+global:
+  scrape_interval: 15s      # How often to scrape targets
+  evaluation_interval: 15s  # How often to evaluate rules
+  external_labels:
+    cluster: taskmaster-local
+    replica: '{{.ExternalURL}}'
+
+# Alertmanager configuration (placeholder for Project 3)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+      # - alertmanager:9093
+
+# Load rules (placeholder)
+rule_files: []
+# - "alert-rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # ==========================================
+  # PROMETHEUS SELF-MONITORING
+  # ==========================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ==========================================
+  # TASKMASTER BACKEND
+  # ==========================================
+  - job_name: 'taskmaster-backend'
+    metrics_path: '/api/v1/actuator/prometheus'
+    static_configs:
+      - targets: ['backend:8080']
+    scrape_interval: 5s
+
+  # ==========================================
+  # KUBERNETES API (if running in K8s)
+  # ==========================================
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  # ==========================================
+  # NODE EXPORTER (host metrics)
+  # ==========================================
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
